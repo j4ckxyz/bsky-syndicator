@@ -51,12 +51,16 @@ export class BlueskySourceAdapter {
       const isOwnPost = entry?.post?.author?.did === this.selfDid;
       const isRepost = Boolean(entry?.reason);
 
+      if (!isOwnPost || isRepost) {
+        return false;
+      }
+
       const hasReplyParent =
         Boolean(entry?.reply?.parent) ||
         typeof entry?.post?.record?.reply?.parent?.uri === "string";
 
       if (!hasReplyParent) {
-        return isOwnPost && !isRepost;
+        return true;
       }
 
       const rootDid = entry?.reply?.root?.author?.did;
@@ -66,18 +70,7 @@ export class BlueskySourceAdapter {
         (typeof rootDid === "string" && rootDid === this.selfDid) ||
         (typeof rootUri === "string" && rootUri.startsWith(`at://${this.selfDid}/`));
 
-      if (isRootOwnPost) {
-        return isOwnPost && !isRepost;
-      }
-
-      const parentDid = entry?.reply?.parent?.author?.did;
-      const parentUri = entry?.post?.record?.reply?.parent?.uri;
-
-      const isParentOwnPost =
-        (typeof parentDid === "string" && parentDid === this.selfDid) ||
-        (typeof parentUri === "string" && parentUri.startsWith(`at://${this.selfDid}/`));
-
-      return isOwnPost && !isRepost && isParentOwnPost;
+      return isRootOwnPost;
     });
   }
 
