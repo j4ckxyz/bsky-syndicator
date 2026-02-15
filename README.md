@@ -20,7 +20,7 @@ Background TypeScript service that treats Bluesky as the source of truth and cro
 ## Runtime Requirements
 
 - Node.js 18+ (22+ recommended)
-- Bun 1.x (recommended package manager for install/dev)
+- Bun 1.x (recommended package manager for install)
 - Redis 7+
 - Linux x64 or arm64 (Raspberry Pi 64-bit supported)
 
@@ -40,11 +40,27 @@ cp .env.example .env
 
 3. Fill in credentials in `.env`.
 
+4. Ensure Redis is running (required by BullMQ):
+
+```bash
+docker run -d --name bsky-redis -p 6379:6379 redis:7-alpine
+```
+
+On Debian/Raspberry Pi OS you can also install via apt:
+
+```bash
+sudo apt update
+sudo apt install -y redis-server
+sudo systemctl enable --now redis-server || sudo systemctl enable --now redis
+```
+
 ## Development
 
 ```bash
 bun run dev
 ```
+
+`dev` runs via `tsx` on Node.js (not Bun runtime), which is required because `better-sqlite3` is not supported by Bun runtime yet.
 
 ## Build and Run
 
@@ -52,6 +68,8 @@ bun run dev
 bun run build
 bun run start
 ```
+
+If Redis is unreachable, the app exits early with a clear startup error.
 
 ## Docker
 
@@ -75,9 +93,9 @@ Important settings:
 Bluesky poller
   -> normalize post
   -> enqueue jobs:
-      - crosspost:mastodon
-      - crosspost:nostr
-      - crosspost:twitter
+      - crosspost-mastodon
+      - crosspost-nostr
+      - crosspost-twitter
 
 workers (independent)
   -> post + retry + log + persist result

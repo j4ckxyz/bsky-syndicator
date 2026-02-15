@@ -1,6 +1,6 @@
 import { Worker, type Job } from "bullmq";
 import { logger } from "../config/logger.js";
-import { QUEUE_NAMES, QueueManager } from "../core/queue.js";
+import { QUEUE_NAMES, QueueManager, createJobId } from "../core/queue.js";
 import type { CrossPostJobData, PlatformName } from "../core/types.js";
 import { AppDatabase } from "../core/db.js";
 import type { PlatformAdapter } from "../adapters/base.js";
@@ -77,11 +77,11 @@ export class CrosspostWorkers {
     } catch (error) {
       if (error instanceof TwitterDailyLimitError && job.data.platform === "twitter") {
         await this.queueManager.queues.twitter.add(
-          `${job.name}:daily-delay`,
+          "twitter-crosspost-delayed",
           job.data,
           {
             delay: error.delayMs,
-            jobId: `twitter:${job.data.post.sourceUri}:${Date.now()}`
+            jobId: createJobId("twitter", job.data.post.sourceUri, `defer-${error.day}`)
           }
         );
 

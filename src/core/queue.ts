@@ -1,14 +1,21 @@
+import { createHash } from "node:crypto";
+import net from "node:net";
 import { Queue, type JobsOptions } from "bullmq";
 import { env } from "../config/env.js";
 import type { CrossPost, CrossPostJobData, PlatformName } from "./types.js";
 
 export const QUEUE_NAMES: Record<PlatformName, string> = {
-  mastodon: "crosspost:mastodon",
-  nostr: "crosspost:nostr",
-  twitter: "crosspost:twitter"
+  mastodon: "crosspost-mastodon",
+  nostr: "crosspost-nostr",
+  twitter: "crosspost-twitter"
 };
 
-function parseRedisConnection(redisUrl: string): {
+export function createJobId(platform: PlatformName, sourceUri: string, suffix?: string): string {
+  const digest = createHash("sha256").update(sourceUri).digest("hex").slice(0, 20);
+  return suffix ? `${platform}-${digest}-${suffix}` : `${platform}-${digest}`;
+}
+
+export function parseRedisConnection(redisUrl: string): {
   host: string;
   port: number;
   username?: string;
@@ -25,6 +32,57 @@ function parseRedisConnection(redisUrl: string): {
     password: parsed.password || undefined,
     db: db ? Number(db) : undefined
   };
+}
+
+export async function assertRedisReachable(redisUrl: string, timeoutMs = 3000): Promise<void> {
+  const connection = parseRedisConnection(redisUrl);
+
+  await new Promise<void>((resolve, reject) => {
+    const socket = net.createConnection({
+      host: connection.host,
+      port: connection.port
+    });
+
+    let settled = false;
+    const finish = (fn: () => void): void => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      fn();
+    };
+
+    const timer = setTimeout(() => {
+      finish(() => {
+        socket.destroy();
+        reject(
+          new Error(
+            `Could not connect to Redis at ${connection.host}:${connection.port}. ` +
+              "Start Redis and verify REDIS_URL."
+          )
+        );
+      });
+    }, timeoutMs);
+
+    socket.once("connect", () => {
+      finish(() => {
+        clearTimeout(timer);
+        socket.end();
+        resolve();
+      });
+    });
+
+    socket.once("error", (error) => {
+      finish(() => {
+        clearTimeout(timer);
+        reject(
+          new Error(
+            `Could not connect to Redis at ${connection.host}:${connection.port}: ${error.message}`
+          )
+        );
+      });
+    });
+  });
 }
 
 const defaultJobOptions: JobsOptions = {
@@ -69,7 +127,7 @@ export class QueueManager {
   async enqueuePost(post: CrossPost, platforms: PlatformName[]): Promise<void> {
     await Promise.all(
       platforms.map((platform) => {
-        const jobName = `${platform}:${post.sourceUri}`;
+        const jobName = `${platform}-crosspost`;
         return this.queues[platform].add(
           jobName,
           {
@@ -77,7 +135,7 @@ export class QueueManager {
             post
           },
           {
-            jobId: `${platform}:${post.sourceUri}`
+            jobId: createJobId(platform, post.sourceUri)
           }
         );
       })

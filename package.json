@@ -8,7 +8,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "dev": "bun --watch src/index.ts",
+    "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "check": "tsc --noEmit",
     "start": "node dist/index.js"
@@ -33,6 +33,7 @@
     "@types/twitter-text": "^3.0.0",
     "@types/ws": "^8.18.1",
     "pino-pretty": "^13.1.2",
+    "tsx": "^4.20.6",
     "typescript": "^5.9.3"
   }
 }

@@ -32,7 +32,7 @@ const envSchema = z.object({
   TWITTER_ACCESS_SECRET: z.string().optional(),
   TWITTER_DAILY_LIMIT: z.coerce.number().int().positive().default(17),
 
-  REDIS_URL: z.string().default("redis://localhost:6379"),
+  REDIS_URL: z.string().default("redis://127.0.0.1:6379"),
   DB_PATH: z.string().default("./data/syndicator.db")
 });
 

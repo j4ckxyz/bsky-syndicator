@@ -1,7 +1,7 @@
 import { env, platformConfig } from "./config/env.js";
 import { logger } from "./config/logger.js";
 import { AppDatabase } from "./core/db.js";
-import { QueueManager } from "./core/queue.js";
+import { QueueManager, assertRedisReachable } from "./core/queue.js";
 import { BlueskyPoller } from "./core/poller.js";
 import { BlueskySourceAdapter } from "./adapters/bluesky.js";
 import { MastodonAdapter } from "./adapters/mastodon.js";
@@ -13,6 +13,8 @@ import { CrosspostWorkers } from "./workers/crosspost-worker.js";
 async function boot(): Promise<void> {
   const appLogger = logger.child({ module: "index" });
   appLogger.info({ nodeEnv: env.NODE_ENV }, "Starting cross-post service");
+
+  await assertRedisReachable(env.REDIS_URL);
 
   const db = new AppDatabase(env.DB_PATH);
   const queueManager = new QueueManager(env.REDIS_URL);
