@@ -46,9 +46,27 @@ export class BlueskySourceAdapter {
 
     const feed = response.data.feed ?? [];
     return feed.filter((item) => {
-      const isOwnPost = item?.post?.author?.did === this.selfDid;
-      const isRepost = Boolean(item?.reason);
-      return isOwnPost && !isRepost;
+      const entry = item as any;
+
+      const isOwnPost = entry?.post?.author?.did === this.selfDid;
+      const isRepost = Boolean(entry?.reason);
+
+      const hasReplyParent =
+        Boolean(entry?.reply?.parent) ||
+        typeof entry?.post?.record?.reply?.parent?.uri === "string";
+
+      if (!hasReplyParent) {
+        return isOwnPost && !isRepost;
+      }
+
+      const parentDid = entry?.reply?.parent?.author?.did;
+      const parentUri = entry?.post?.record?.reply?.parent?.uri;
+
+      const isReplyToOwnPost =
+        (typeof parentDid === "string" && parentDid === this.selfDid) ||
+        (typeof parentUri === "string" && parentUri.startsWith(`at://${this.selfDid}/`));
+
+      return isOwnPost && !isRepost && isReplyToOwnPost;
     });
   }
 }

@@ -5,6 +5,7 @@ Background TypeScript service that treats Bluesky as the source of truth and cro
 ## Features
 
 - Bluesky source polling via official `@atproto/api`
+- Only cross-posts top-level posts and self-thread replies (skips replies to other users)
 - Independent async pipelines per target platform (BullMQ + Redis)
 - Failure isolation: one platform failing does not block the others
 - Automatic retries with exponential backoff
