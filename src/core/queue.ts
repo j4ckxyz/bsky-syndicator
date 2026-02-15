@@ -3,6 +3,7 @@ import net from "node:net";
 import { Queue, type JobsOptions } from "bullmq";
 import { env } from "../config/env.js";
 import type { CrossPost, CrossPostJobData, PlatformName } from "./types.js";
+import { encodePostForQueue } from "./job-serialization.js";
 
 export const QUEUE_NAMES: Record<PlatformName, string> = {
   mastodon: "crosspost-mastodon",
@@ -125,6 +126,8 @@ export class QueueManager {
   }
 
   async enqueuePost(post: CrossPost, platforms: PlatformName[]): Promise<void> {
+    const serialized = encodePostForQueue(post);
+
     await Promise.all(
       platforms.map((platform) => {
         const jobName = `${platform}-crosspost`;
@@ -132,10 +135,30 @@ export class QueueManager {
           jobName,
           {
             platform,
-            post
+            action: "post",
+            post: serialized
           },
           {
             jobId: createJobId(platform, post.sourceUri)
+          }
+        );
+      })
+    );
+  }
+
+  async enqueueDelete(sourceUri: string, platforms: PlatformName[]): Promise<void> {
+    await Promise.all(
+      platforms.map((platform) => {
+        const jobName = `${platform}-delete`;
+        return this.queues[platform].add(
+          jobName,
+          {
+            platform,
+            action: "delete",
+            sourceUri
+          },
+          {
+            jobId: createJobId(platform, sourceUri, "delete")
           }
         );
       })

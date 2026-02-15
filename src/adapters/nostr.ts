@@ -120,7 +120,7 @@ export class NostrAdapter implements PlatformAdapter {
       const form = new FormData();
       const filename = media.filename ?? `${Date.now()}.${media.type === "image" ? "jpg" : "mp4"}`;
       const fileBytes = Uint8Array.from(media.data);
-      form.set("file", new Blob([fileBytes.buffer], { type: media.mimeType }), filename);
+      form.set("file", new Blob([fileBytes], { type: media.mimeType }), filename);
       if (media.altText) {
         form.set("alt", media.altText);
       }
@@ -211,6 +211,28 @@ export class NostrAdapter implements PlatformAdapter {
       url: `nostr:${event.id}`,
       threadIds: [event.id]
     };
+  }
+
+  async delete(sourceUri: string): Promise<void> {
+    const remoteIds = this.db.getPlatformRemoteIds(sourceUri, this.name);
+    if (remoteIds.length === 0) {
+      return;
+    }
+
+    for (const remoteId of remoteIds) {
+      const deletion = finalizeEvent(
+        {
+          kind: 5,
+          created_at: Math.floor(Date.now() / 1000),
+          tags: [["e", remoteId]],
+          content: "Deleted from source"
+        },
+        this.secretKey
+      );
+
+      const publishResults = this.pool.publish(this.relays, deletion) as Array<Promise<unknown>>;
+      await Promise.any(publishResults);
+    }
   }
 
   async destroy(): Promise<void> {

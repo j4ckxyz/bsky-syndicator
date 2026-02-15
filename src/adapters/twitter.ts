@@ -169,6 +169,24 @@ export class TwitterAdapter implements PlatformAdapter {
     };
   }
 
+  async delete(sourceUri: string): Promise<void> {
+    const remoteIds = this.db.getPlatformRemoteIds(sourceUri, this.name);
+    if (remoteIds.length === 0) {
+      return;
+    }
+
+    for (const remoteId of [...remoteIds].reverse()) {
+      try {
+        await this.client.v2.deleteTweet(remoteId);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (!message.includes("404") && !message.includes("Not Found")) {
+          throw error;
+        }
+      }
+    }
+  }
+
   async destroy(): Promise<void> {
     this.log.info("Twitter adapter stopped");
   }

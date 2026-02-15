@@ -69,4 +69,36 @@ export class BlueskySourceAdapter {
       return isOwnPost && !isRepost && isReplyToOwnPost;
     });
   }
+
+  async fetchCurrentPostUris(): Promise<Set<string>> {
+    if (!this.selfDid) {
+      throw new Error("BlueskySourceAdapter is not initialized");
+    }
+
+    const uris = new Set<string>();
+    let cursor: string | undefined;
+
+    for (let page = 0; page < env.BLUESKY_DELETE_SYNC_MAX_PAGES; page += 1) {
+      const response = await this.agent.com.atproto.repo.listRecords({
+        repo: this.selfDid,
+        collection: "app.bsky.feed.post",
+        limit: 100,
+        cursor
+      });
+
+      const records = response.data.records ?? [];
+      for (const record of records) {
+        if (typeof record.uri === "string") {
+          uris.add(record.uri);
+        }
+      }
+
+      cursor = response.data.cursor;
+      if (!cursor) {
+        break;
+      }
+    }
+
+    return uris;
+  }
 }

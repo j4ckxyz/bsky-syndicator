@@ -74,7 +74,7 @@ export class MastodonAdapter implements PlatformAdapter {
 
     for (const media of uploads) {
       const fileBytes = Uint8Array.from(media.data);
-      const file = new Blob([fileBytes.buffer], { type: media.mimeType });
+      const file = new Blob([fileBytes], { type: media.mimeType });
       const uploaded = await this.client.v2.media.create({
         file,
         description: media.altText
@@ -119,6 +119,31 @@ export class MastodonAdapter implements PlatformAdapter {
       url: firstUrl,
       threadIds
     };
+  }
+
+  async delete(sourceUri: string): Promise<void> {
+    if (!env.MASTODON_INSTANCE || !env.MASTODON_ACCESS_TOKEN) {
+      return;
+    }
+
+    const remoteIds = this.db.getPlatformRemoteIds(sourceUri, this.name);
+    if (remoteIds.length === 0) {
+      return;
+    }
+
+    for (const remoteId of [...remoteIds].reverse()) {
+      const url = new URL(`/api/v1/statuses/${encodeURIComponent(remoteId)}`, env.MASTODON_INSTANCE);
+      const response = await fetch(url, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${env.MASTODON_ACCESS_TOKEN}`
+        }
+      });
+
+      if (!response.ok && response.status !== 404) {
+        throw new Error(`Mastodon deletion failed (${response.status}): ${response.statusText}`);
+      }
+    }
   }
 
   async destroy(): Promise<void> {

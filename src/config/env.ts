@@ -18,6 +18,8 @@ const envSchema = z.object({
   BLUESKY_PASSWORD: z.string().min(1, "BLUESKY_PASSWORD is required"),
   BLUESKY_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(15000),
   BLUESKY_FEED_LIMIT: z.coerce.number().int().min(1).max(100).default(50),
+  BLUESKY_DELETE_SYNC_INTERVAL_MS: z.coerce.number().int().positive().default(60000),
+  BLUESKY_DELETE_SYNC_MAX_PAGES: z.coerce.number().int().min(1).max(1000).default(100),
 
   MASTODON_INSTANCE: optionalUrl,
   MASTODON_ACCESS_TOKEN: z.string().optional(),

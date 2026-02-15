@@ -5,6 +5,7 @@ import type { CrossPostJobData, PlatformName } from "../core/types.js";
 import { AppDatabase } from "../core/db.js";
 import type { PlatformAdapter } from "../adapters/base.js";
 import { TwitterDailyLimitError } from "../adapters/twitter.js";
+import { decodePostFromQueue } from "../core/job-serialization.js";
 
 export class CrosspostWorkers {
   private readonly log = logger.child({ module: "workers/crosspost" });
@@ -37,22 +38,27 @@ export class CrosspostWorkers {
       );
 
       worker.on("completed", (job) => {
+        const sourceUri = job.data.action === "post" ? job.data.post.sourceUri : job.data.sourceUri;
         this.log.info(
           {
             jobId: job.id,
             platform,
-            sourceUri: job.data.post.sourceUri
+            sourceUri,
+            action: job.data.action
           },
           "Cross-post job completed"
         );
       });
 
       worker.on("failed", (job, error) => {
+        const sourceUri =
+          job?.data.action === "post" ? job.data.post.sourceUri : job?.data.sourceUri;
         this.log.error(
           {
             jobId: job?.id,
             platform,
-            sourceUri: job?.data.post.sourceUri,
+            sourceUri,
+            action: job?.data.action,
             error: error?.message
           },
           "Cross-post job failed"
@@ -65,13 +71,36 @@ export class CrosspostWorkers {
   }
 
   private async processJob(job: Job<CrossPostJobData>, adapter: PlatformAdapter): Promise<void> {
+    if (job.data.action === "delete") {
+      const { sourceUri } = job.data;
+      try {
+        await adapter.delete(sourceUri);
+        this.db.recordPlatformDeletion({
+          uri: sourceUri,
+          platform: job.data.platform
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        this.db.recordPlatformFailure({
+          uri: sourceUri,
+          platform: job.data.platform,
+          error: message
+        });
+        throw error;
+      }
+      return;
+    }
+
+    const post = decodePostFromQueue(job.data.post);
+
     try {
-      const result = await adapter.post(job.data.post);
+      const result = await adapter.post(post);
 
       this.db.recordPlatformSuccess({
-        uri: job.data.post.sourceUri,
+        uri: post.sourceUri,
         platform: job.data.platform,
         remoteId: result.id,
+        remoteIds: result.threadIds,
         remoteUrl: result.url
       });
     } catch (error) {
@@ -81,13 +110,13 @@ export class CrosspostWorkers {
           job.data,
           {
             delay: error.delayMs,
-            jobId: createJobId("twitter", job.data.post.sourceUri, `defer-${error.day}`)
+            jobId: createJobId("twitter", post.sourceUri, `defer-${error.day}`)
           }
         );
 
         this.log.warn(
           {
-            sourceUri: job.data.post.sourceUri,
+            sourceUri: post.sourceUri,
             day: error.day,
             currentCount: error.currentCount,
             limit: error.limit,
@@ -100,7 +129,7 @@ export class CrosspostWorkers {
 
       const message = error instanceof Error ? error.message : String(error);
       this.db.recordPlatformFailure({
-        uri: job.data.post.sourceUri,
+        uri: post.sourceUri,
         platform: job.data.platform,
         error: message
       });

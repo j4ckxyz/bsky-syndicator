@@ -15,6 +15,7 @@ export class BlueskyPoller {
 
   private timer: NodeJS.Timeout | null = null;
   private running = false;
+  private lastDeletionSyncAt = 0;
 
   constructor(params: {
     source: BlueskySourceAdapter;
@@ -91,6 +92,12 @@ export class BlueskyPoller {
           "Queued cross-post jobs for new Bluesky post"
         );
       }
+
+      const now = Date.now();
+      if (now - this.lastDeletionSyncAt >= env.BLUESKY_DELETE_SYNC_INTERVAL_MS) {
+        await this.syncDeletedPosts();
+        this.lastDeletionSyncAt = now;
+      }
     } catch (error) {
       this.log.error(
         {
@@ -100,6 +107,28 @@ export class BlueskyPoller {
       );
     } finally {
       this.running = false;
+    }
+  }
+
+  private async syncDeletedPosts(): Promise<void> {
+    const currentUris = await this.source.fetchCurrentPostUris();
+    const knownUris = this.db.listActiveSourceUris();
+    const deletedUris = knownUris.filter((uri) => !currentUris.has(uri));
+
+    for (const sourceUri of deletedUris) {
+      const platformsWithRemotePost = this.db.getPlatformsWithRemoteIds(sourceUri);
+      if (platformsWithRemotePost.length > 0) {
+        await this.queueManager.enqueueDelete(sourceUri, platformsWithRemotePost);
+      }
+
+      this.db.markSourcePostDeleted(sourceUri);
+      this.log.info(
+        {
+          sourceUri,
+          targets: platformsWithRemotePost
+        },
+        "Detected deleted Bluesky post and queued deletion sync"
+      );
     }
   }
 }

@@ -10,11 +10,12 @@ Background TypeScript service that treats Bluesky as the source of truth and cro
 - Failure isolation: one platform failing does not block the others
 - Automatic retries with exponential backoff
 - SQLite deduplication so the same Bluesky post is not re-enqueued on restart
+- Deletion sync: when a tracked Bluesky post is deleted, linked Mastodon/Nostr/Twitter posts are deleted too
 - Twitter daily cap via `TWITTER_DAILY_LIMIT` (count-based budget guard)
 - Thread-aware text splitting for Twitter (280) and Mastodon (instance limit)
 - Media + alt-text carry-over:
-  - Mastodon: media upload descriptions
-  - Twitter: media metadata alt text
+  - Mastodon: image/video uploads with descriptions
+  - Twitter: image/video uploads with media metadata alt text
   - Nostr: uploads via nostr.build (NIP-96 + NIP-98 auth)
 - Structured logs with Pino
 
@@ -133,6 +134,7 @@ See `.env.example` for all variables.
 Important settings:
 
 - `BLUESKY_SERVICE` supports third-party PDS URLs
+- `BLUESKY_DELETE_SYNC_INTERVAL_MS` controls how often deletions are reconciled
 - `MASTODON_INSTANCE` supports any Mastodon-compatible instance URL
 - `TWITTER_DAILY_LIMIT` caps total tweet writes per UTC day
 

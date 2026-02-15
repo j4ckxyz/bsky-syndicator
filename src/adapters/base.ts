@@ -4,5 +4,6 @@ export interface PlatformAdapter {
   readonly name: PlatformName;
   init(): Promise<void>;
   post(post: CrossPost): Promise<PostResult>;
+  delete(sourceUri: string): Promise<void>;
   destroy(): Promise<void>;
 }

@@ -28,16 +28,33 @@ export interface CrossPost {
   sourceCid: string;
 }
 
+export interface MediaAssetWire extends Omit<MediaAsset, "data"> {
+  dataBase64: string;
+}
+
+export interface CrossPostWire extends Omit<CrossPost, "media"> {
+  media?: MediaAssetWire[];
+}
+
 export interface PostResult {
   id: string;
   url?: string;
   threadIds?: string[];
 }
 
-export interface CrossPostJobData {
+export interface CrossPostPublishJobData {
   platform: PlatformName;
-  post: CrossPost;
+  action: "post";
+  post: CrossPost | CrossPostWire;
 }
+
+export interface CrossPostDeleteJobData {
+  platform: PlatformName;
+  action: "delete";
+  sourceUri: string;
+}
+
+export type CrossPostJobData = CrossPostPublishJobData | CrossPostDeleteJobData;
 
 export interface SourceRecord {
   uri: string;
