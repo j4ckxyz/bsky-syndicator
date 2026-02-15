@@ -155,6 +155,13 @@ export class TwitterAdapter implements PlatformAdapter {
     const rootReplyId = post.reply
       ? this.db.getPlatformRemoteId(post.reply.rootUri, this.name) ?? undefined
       : undefined;
+
+    if (post.reply && !parentReplyId && !rootReplyId) {
+      throw new Error(
+        `Reply thread dependency not ready on Twitter for ${post.sourceUri}; waiting for parent/root cross-post`
+      );
+    }
+
     const inheritedReplyId = parentReplyId ?? rootReplyId;
 
     let replyToTweetId: string | undefined = inheritedReplyId;

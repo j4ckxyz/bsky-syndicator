@@ -105,6 +105,13 @@ export class MastodonAdapter implements PlatformAdapter {
     const rootReplyId = post.reply
       ? this.db.getPlatformRemoteId(post.reply.rootUri, this.name) ?? undefined
       : undefined;
+
+    if (post.reply && !parentReplyId && !rootReplyId) {
+      throw new Error(
+        `Reply thread dependency not ready on Mastodon for ${post.sourceUri}; waiting for parent/root cross-post`
+      );
+    }
+
     const baseReplyId = parentReplyId ?? rootReplyId;
 
     let previousId: string | undefined = baseReplyId;

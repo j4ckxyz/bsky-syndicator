@@ -189,6 +189,13 @@ export class NostrAdapter implements PlatformAdapter {
     if (post.reply?.rootUri) {
       const rootId = this.db.getPlatformRemoteId(post.reply.rootUri, this.name);
       const parentId = this.db.getPlatformRemoteId(post.reply.parentUri, this.name);
+
+      if (!rootId && !parentId) {
+        throw new Error(
+          `Reply thread dependency not ready on Nostr for ${post.sourceUri}; waiting for parent/root cross-post`
+        );
+      }
+
       if (rootId) {
         tags.push(["e", rootId, "", "root"]);
       }
