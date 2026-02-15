@@ -11,7 +11,9 @@ Background TypeScript service that treats Bluesky as the source of truth and cro
 - Automatic retries with exponential backoff
 - SQLite deduplication so the same Bluesky post is not re-enqueued on restart
 - Deletion sync: when a tracked Bluesky post is deleted, linked Mastodon/Nostr/Twitter posts are deleted too
+- Twitter posting/deletion via internal web endpoints (OldTwitter-style: chunked media upload + GraphQL CreateTweet/DeleteTweet)
 - Twitter daily cap via `TWITTER_DAILY_LIMIT` (count-based budget guard)
+- Twitter pacing guard (`TWITTER_MIN_POST_INTERVAL_MS`) to spread writes and avoid bursty 429s
 - Thread-aware text splitting for Twitter (280) and Mastodon (instance limit)
 - Media + alt-text carry-over:
   - Mastodon: image/video uploads with descriptions
@@ -137,7 +139,11 @@ Important settings:
 - `BLUESKY_SERVICE` supports third-party PDS URLs
 - `BLUESKY_DELETE_SYNC_INTERVAL_MS` controls how often deletions are reconciled
 - `MASTODON_INSTANCE` supports any Mastodon-compatible instance URL
+- `TWITTER_AUTH_TOKEN` and `TWITTER_CT0` are the primary Twitter session credentials
+- `TWITTER_WEB_COOKIE_EXTRA` can append additional cookie pairs when needed
+- `TWITTER_WEB_COOKIE` remains supported as a legacy full-cookie fallback
 - `TWITTER_DAILY_LIMIT` caps total tweet writes per UTC day
+- `TWITTER_MIN_POST_INTERVAL_MS` spaces out Twitter jobs (defaults to `24h / TWITTER_DAILY_LIMIT`)
 
 ## Architecture
 

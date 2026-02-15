@@ -45,6 +45,21 @@ function resolvePlatformQuoteUrl(params: {
   return undefined;
 }
 
+function toBlueskyAppPostUrl(uri: string, actorHint?: string): string | undefined {
+  const match = uri.match(/^at:\/\/([^/]+)\/([^/]+)\/([^/?#]+)/);
+  if (!match) {
+    return undefined;
+  }
+
+  const [, repo, collection, rkey] = match;
+  if (collection !== "app.bsky.feed.post") {
+    return undefined;
+  }
+
+  const actor = actorHint && actorHint.trim() ? actorHint.trim() : repo;
+  return `https://bsky.app/profile/${encodeURIComponent(actor)}/post/${encodeURIComponent(rkey)}`;
+}
+
 export function buildPostTextWithSelfQuote(params: {
   post: CrossPost;
   platform: PlatformName;
@@ -60,17 +75,19 @@ export function buildPostTextWithSelfQuote(params: {
     (post.quote.authorDid && post.quote.authorDid === post.authorDid) ||
     post.quote.uri.startsWith(`at://${post.authorDid}/`);
 
+  const quoteUrl =
+    resolvePlatformQuoteUrl({
+      db: params.db,
+      platform: params.platform,
+      sourceUri: post.quote.uri
+    }) ?? toBlueskyAppPostUrl(post.quote.uri, post.quote.authorDid);
+
   if (!quoteIsSelf) {
-    return post.text;
+    const quoteReference = quoteUrl ? `Quoted post: ${quoteUrl}` : undefined;
+    return [post.text.trim(), quoteReference].filter(Boolean).join("\n\n");
   }
 
   const quoteHeader = `[Quoted ${formatQuotedDate(post.quote.createdAt)}]`;
   const quoteBody = toQuoteBlock(post.quote.text);
-  const quoteUrl = resolvePlatformQuoteUrl({
-    db: params.db,
-    platform: params.platform,
-    sourceUri: post.quote.uri
-  });
-
   return [post.text.trim(), quoteHeader, quoteBody, quoteUrl].filter(Boolean).join("\n\n");
 }
