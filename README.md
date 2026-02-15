@@ -87,7 +87,11 @@ version and systemd runs another, native modules like `better-sqlite3` will fail
 
 ```bash
 which node
+readlink -f "$(which node)"
 ```
+
+Use the `readlink -f` result (stable path). Avoid transient paths under `/run/user/...`
+when writing `ExecStart`, because those can break after reboot.
 
 2. Create a service file using that exact Node path in `ExecStart`:
 
