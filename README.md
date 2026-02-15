@@ -78,6 +78,50 @@ If Redis is unreachable, the app exits early with a clear startup error.
 docker compose up --build
 ```
 
+## Run as a service (systemd)
+
+Use the same Node binary for install and runtime. If dependencies were installed with one Node
+version and systemd runs another, native modules like `better-sqlite3` will fail to load.
+
+1. Check your active Node path:
+
+```bash
+which node
+```
+
+2. Create a service file using that exact Node path in `ExecStart`:
+
+```ini
+[Unit]
+Description=Bluesky Syndicator
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/bsky-syndicator
+EnvironmentFile=/home/pi/bsky-syndicator/.env
+ExecStart=/path/to/your/node /home/pi/bsky-syndicator/dist/index.js
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+3. Enable and start it:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now bsky-syndicator
+sudo systemctl status bsky-syndicator
+```
+
+If you see a `NODE_MODULE_VERSION` mismatch error, reinstall dependencies with the same Node
+binary used by `ExecStart`.
+
 ## Configuration
 
 See `.env.example` for all variables.
