@@ -1,0 +1,38 @@
+{
+  "name": "bsky-syndicator",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cross-posts Bluesky posts to Mastodon, Nostr, and Twitter",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc --noEmit",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@atproto/api": "^0.17.3",
+    "better-sqlite3": "^12.4.1",
+    "bullmq": "^5.63.1",
+    "dotenv": "^17.2.3",
+    "ioredis": "^5.8.1",
+    "masto": "^7.4.0",
+    "nostr-tools": "^2.17.0",
+    "pino": "^10.1.0",
+    "twitter-api-v2": "^1.26.2",
+    "twitter-text": "^3.1.0",
+    "ws": "^8.18.3",
+    "zod": "^4.1.11"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^24.6.2",
+    "@types/twitter-text": "^3.0.0",
+    "@types/ws": "^8.18.1",
+    "pino-pretty": "^13.1.2",
+    "typescript": "^5.9.3"
+  }
+}
