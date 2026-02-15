@@ -7,6 +7,7 @@ import { logger } from "../config/logger.js";
 import type { PlatformAdapter } from "./base.js";
 import type { CrossPost, PostResult } from "../core/types.js";
 import { AppDatabase } from "../core/db.js";
+import { buildPostTextWithSelfQuote } from "../core/quote-context.js";
 
 interface UploadedMedia {
   url: string;
@@ -161,12 +162,18 @@ export class NostrAdapter implements PlatformAdapter {
   async post(post: CrossPost): Promise<PostResult> {
     const uploadedMedia = await this.uploadMedia(post);
 
+    const text = buildPostTextWithSelfQuote({
+      post,
+      platform: this.name,
+      db: this.db
+    });
+
     const mediaLines = uploadedMedia.map((item) => item.url);
     const altLines = uploadedMedia
       .map((item, index) => (item.altText ? `[alt ${index + 1}] ${item.altText}` : null))
       .filter((item): item is string => Boolean(item));
 
-    const contentBlocks = [post.text.trim()];
+    const contentBlocks = [text.trim()];
     if (mediaLines.length > 0) {
       contentBlocks.push(mediaLines.join("\n"));
     }
@@ -185,8 +192,8 @@ export class NostrAdapter implements PlatformAdapter {
       if (rootId) {
         tags.push(["e", rootId, "", "root"]);
       }
-      if (parentId) {
-        tags.push(["e", parentId, "", "reply"]);
+      if (parentId || rootId) {
+        tags.push(["e", parentId ?? rootId!, "", "reply"]);
       }
       if (rootId || parentId) {
         tags.push(["p", this.publicKey]);

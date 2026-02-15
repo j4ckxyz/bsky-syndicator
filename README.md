@@ -5,7 +5,7 @@ Background TypeScript service that treats Bluesky as the source of truth and cro
 ## Features
 
 - Bluesky source polling via official `@atproto/api`
-- Only cross-posts top-level posts and self-thread replies (skips replies to other users)
+- Only cross-posts top-level posts and replies within your own root threads
 - Independent async pipelines per target platform (BullMQ + Redis)
 - Failure isolation: one platform failing does not block the others
 - Automatic retries with exponential backoff
@@ -17,6 +17,7 @@ Background TypeScript service that treats Bluesky as the source of truth and cro
   - Mastodon: image/video uploads with descriptions
   - Twitter: image/video uploads with media metadata alt text
   - Nostr: uploads via nostr.build (NIP-96 + NIP-98 auth)
+- Self-quote support: includes quoted text with original date context on target platforms
 - Structured logs with Pino
 
 ## Runtime Requirements

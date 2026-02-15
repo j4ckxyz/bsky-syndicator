@@ -59,14 +59,25 @@ export class BlueskySourceAdapter {
         return isOwnPost && !isRepost;
       }
 
+      const rootDid = entry?.reply?.root?.author?.did;
+      const rootUri = entry?.post?.record?.reply?.root?.uri;
+
+      const isRootOwnPost =
+        (typeof rootDid === "string" && rootDid === this.selfDid) ||
+        (typeof rootUri === "string" && rootUri.startsWith(`at://${this.selfDid}/`));
+
+      if (isRootOwnPost) {
+        return isOwnPost && !isRepost;
+      }
+
       const parentDid = entry?.reply?.parent?.author?.did;
       const parentUri = entry?.post?.record?.reply?.parent?.uri;
 
-      const isReplyToOwnPost =
+      const isParentOwnPost =
         (typeof parentDid === "string" && parentDid === this.selfDid) ||
         (typeof parentUri === "string" && parentUri.startsWith(`at://${this.selfDid}/`));
 
-      return isOwnPost && !isRepost && isReplyToOwnPost;
+      return isOwnPost && !isRepost && isParentOwnPost;
     });
   }
 

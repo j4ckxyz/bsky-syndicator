@@ -9,6 +9,7 @@ import type { PlatformAdapter } from "./base.js";
 import type { CrossPost, PostResult } from "../core/types.js";
 import { AppDatabase } from "../core/db.js";
 import { countByTwitterRules, splitIntoThread } from "../core/text-splitter.js";
+import { buildPostTextWithSelfQuote } from "../core/quote-context.js";
 
 function toUtcDay(date = new Date()): string {
   return date.toISOString().slice(0, 10);
@@ -113,7 +114,13 @@ export class TwitterAdapter implements PlatformAdapter {
   }
 
   async post(post: CrossPost): Promise<PostResult> {
-    const chunks = splitIntoThread(post.text, {
+    const text = buildPostTextWithSelfQuote({
+      post,
+      platform: this.name,
+      db: this.db
+    });
+
+    const chunks = splitIntoThread(text, {
       maxLength: 280,
       countLength: countByTwitterRules,
       reserveForCounter: 8
@@ -142,9 +149,13 @@ export class TwitterAdapter implements PlatformAdapter {
           }
         : undefined;
 
-    const inheritedReplyId = post.reply
+    const parentReplyId = post.reply
       ? this.db.getPlatformRemoteId(post.reply.parentUri, this.name) ?? undefined
       : undefined;
+    const rootReplyId = post.reply
+      ? this.db.getPlatformRemoteId(post.reply.rootUri, this.name) ?? undefined
+      : undefined;
+    const inheritedReplyId = parentReplyId ?? rootReplyId;
 
     let replyToTweetId: string | undefined = inheritedReplyId;
     const threadIds: string[] = [];

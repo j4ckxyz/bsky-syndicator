@@ -62,7 +62,9 @@ export function decodePostFromQueue(post: CrossPost | CrossPostWire): CrossPost 
     links: wire.links,
     altText: wire.altText,
     createdAt: wire.createdAt,
+    authorDid: wire.authorDid,
     reply: wire.reply,
+    quote: wire.quote,
     sourceUri: wire.sourceUri,
     sourceCid: wire.sourceCid
   };

@@ -1,5 +1,5 @@
 import type { AtpAgent } from "@atproto/api";
-import type { CrossPost, MediaAsset } from "./types.js";
+import type { CrossPost, MediaAsset, QuoteMetadata } from "./types.js";
 
 function normalizeMimeType(value: string | null | undefined): string {
   if (!value) {
@@ -55,6 +55,36 @@ function inferMimeFromMagic(data: Buffer): string | null {
     return "video/mp4";
   }
   return null;
+}
+
+function extractQuoteMetadata(embed: any): QuoteMetadata | undefined {
+  const recordView =
+    embed?.$type === "app.bsky.embed.record#view"
+      ? embed?.record
+      : embed?.$type === "app.bsky.embed.recordWithMedia#view"
+        ? embed?.record?.record
+        : undefined;
+
+  if (!recordView || typeof recordView?.uri !== "string") {
+    return undefined;
+  }
+
+  const value = recordView?.value;
+  const text = typeof value?.text === "string" ? value.text : "[Quoted post]";
+  const createdAt =
+    typeof value?.createdAt === "string"
+      ? value.createdAt
+      : typeof recordView?.indexedAt === "string"
+        ? recordView.indexedAt
+        : new Date().toISOString();
+
+  return {
+    uri: recordView.uri,
+    cid: typeof recordView?.cid === "string" ? recordView.cid : undefined,
+    text,
+    createdAt,
+    authorDid: typeof recordView?.author?.did === "string" ? recordView.author.did : undefined
+  };
 }
 
 async function fetchBufferFromUrl(url: string): Promise<{ data: Buffer; mimeType: string }> {
@@ -149,11 +179,13 @@ async function fetchBlobFromRecord(params: {
 async function extractMedia(feedItem: any, agent: AtpAgent): Promise<MediaAsset[]> {
   const media: MediaAsset[] = [];
   const embedView = feedItem?.post?.embed;
+  const mediaView =
+    embedView?.$type === "app.bsky.embed.recordWithMedia#view" ? embedView?.media : embedView;
   const record = feedItem?.post?.record;
   const did = feedItem?.post?.author?.did;
 
-  if (embedView?.$type === "app.bsky.embed.images#view" && Array.isArray(embedView.images)) {
-    for (const image of embedView.images) {
+  if (mediaView?.$type === "app.bsky.embed.images#view" && Array.isArray(mediaView.images)) {
+    for (const image of mediaView.images) {
       if (typeof image?.fullsize !== "string") {
         continue;
       }
@@ -223,13 +255,14 @@ export async function normalizeFeedPost(params: {
   const postView = params.feedItem?.post;
   const record = postView?.record;
 
-  if (!postView?.uri || !postView?.cid || !record?.text) {
+  if (!postView?.uri || !postView?.cid || !record?.text || typeof postView?.author?.did !== "string") {
     return null;
   }
 
   const media = await extractMedia(params.feedItem, params.agent);
   const links = extractLinks(record, postView?.embed);
   const altText = media.map((item) => item.altText).filter((item): item is string => Boolean(item));
+  const quote = extractQuoteMetadata(postView?.embed);
 
   const reply =
     record?.reply?.root?.uri &&
@@ -253,7 +286,9 @@ export async function normalizeFeedPost(params: {
     links: links.length > 0 ? links : undefined,
     altText: altText.length > 0 ? altText : undefined,
     createdAt,
+    authorDid: postView.author.did,
     reply,
+    quote,
     sourceUri: postView.uri,
     sourceCid: postView.cid
   };

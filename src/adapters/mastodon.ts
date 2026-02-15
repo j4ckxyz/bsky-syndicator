@@ -5,6 +5,7 @@ import type { PlatformAdapter } from "./base.js";
 import type { CrossPost, PostResult } from "../core/types.js";
 import { AppDatabase } from "../core/db.js";
 import { countByCodePoints, splitIntoThread } from "../core/text-splitter.js";
+import { buildPostTextWithSelfQuote } from "../core/quote-context.js";
 
 export class MastodonAdapter implements PlatformAdapter {
   readonly name = "mastodon" as const;
@@ -86,15 +87,25 @@ export class MastodonAdapter implements PlatformAdapter {
   }
 
   async post(post: CrossPost): Promise<PostResult> {
-    const chunks = splitIntoThread(post.text, {
+    const text = buildPostTextWithSelfQuote({
+      post,
+      platform: this.name,
+      db: this.db
+    });
+
+    const chunks = splitIntoThread(text, {
       maxLength: this.maxCharacters,
       countLength: countByCodePoints
     });
 
     const mediaIds = await this.uploadMedia(post);
-    const baseReplyId = post.reply
+    const parentReplyId = post.reply
       ? this.db.getPlatformRemoteId(post.reply.parentUri, this.name) ?? undefined
       : undefined;
+    const rootReplyId = post.reply
+      ? this.db.getPlatformRemoteId(post.reply.rootUri, this.name) ?? undefined
+      : undefined;
+    const baseReplyId = parentReplyId ?? rootReplyId;
 
     let previousId: string | undefined = baseReplyId;
     const threadIds: string[] = [];

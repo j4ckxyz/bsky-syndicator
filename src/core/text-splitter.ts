@@ -70,10 +70,12 @@ function splitRaw(text: string, maxLength: number, countLength: LengthCounter): 
       end += 1;
     }
 
+    const reachedTextEnd = end >= graphemes.length;
+
     if (end === cursor) {
       candidate = graphemes[cursor];
       end = cursor + 1;
-    } else if (lastBoundary >= cursor && lastBoundary + 1 < end) {
+    } else if (!reachedTextEnd && lastBoundary >= cursor && lastBoundary + 1 < end) {
       const fullWindow = end - cursor;
       const boundaryWindow = lastBoundary + 1 - cursor;
       if (boundaryWindow >= Math.floor(fullWindow * 0.55)) {

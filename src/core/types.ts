@@ -17,13 +17,23 @@ export interface ReplyMetadata {
   parentCid: string;
 }
 
+export interface QuoteMetadata {
+  uri: string;
+  cid?: string;
+  text: string;
+  createdAt: string;
+  authorDid?: string;
+}
+
 export interface CrossPost {
   text: string;
   media?: MediaAsset[];
   links?: string[];
   altText?: string[];
   createdAt: string;
+  authorDid: string;
   reply?: ReplyMetadata;
+  quote?: QuoteMetadata;
   sourceUri: string;
   sourceCid: string;
 }
