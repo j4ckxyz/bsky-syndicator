@@ -1,4 +1,4 @@
-import { Worker, type Job } from "bullmq";
+import { UnrecoverableError, Worker, type Job } from "bullmq";
 import { logger } from "../config/logger.js";
 import { QUEUE_NAMES, QueueManager, createJobId } from "../core/queue.js";
 import type { CrossPostJobData, PlatformName } from "../core/types.js";
@@ -6,6 +6,38 @@ import { AppDatabase } from "../core/db.js";
 import type { PlatformAdapter } from "../adapters/base.js";
 import { TwitterDailyLimitError } from "../adapters/twitter.js";
 import { decodePostFromQueue } from "../core/job-serialization.js";
+
+function extractStatusCode(error: unknown): number | undefined {
+  if (!error || typeof error !== "object") {
+    return undefined;
+  }
+
+  const candidate = error as {
+    code?: unknown;
+    status?: unknown;
+    statusCode?: unknown;
+    message?: unknown;
+  };
+
+  for (const value of [candidate.code, candidate.status, candidate.statusCode]) {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+  }
+
+  if (typeof candidate.message === "string") {
+    const directMatch = candidate.message.match(/\b(4\d{2}|5\d{2})\b/);
+    if (directMatch) {
+      return Number(directMatch[1]);
+    }
+  }
+
+  return undefined;
+}
+
+function isPermanentClientError(statusCode: number | undefined): boolean {
+  return typeof statusCode === "number" && statusCode >= 400 && statusCode < 500 && statusCode !== 429;
+}
 
 export class CrosspostWorkers {
   private readonly log = logger.child({ module: "workers/crosspost" });
@@ -86,6 +118,12 @@ export class CrosspostWorkers {
           platform: job.data.platform,
           error: message
         });
+
+        const statusCode = extractStatusCode(error);
+        if (isPermanentClientError(statusCode)) {
+          throw new UnrecoverableError(message);
+        }
+
         throw error;
       }
       return;
@@ -133,6 +171,11 @@ export class CrosspostWorkers {
         platform: job.data.platform,
         error: message
       });
+
+      const statusCode = extractStatusCode(error);
+      if (isPermanentClientError(statusCode)) {
+        throw new UnrecoverableError(message);
+      }
 
       throw error;
     }
